@@ -48,34 +48,43 @@ static int iosuhaxHandle = -1;
 #define ALIGN_0x40        ALIGN(0x40)
 #define ROUNDUP(x, align) (((x) + ((align) -1)) & ~((align) -1))
 
-int IOSUHAX_UnlockFSClient(FSClient *client) {
+FSError IOSUHAX_UnlockFSClient(FSClient *client) {
     if (!client) {
-        return -1;
+        return FS_ERROR_INVALID_CLIENTHANDLE;
     }
+
+    return IOSUHAX_UnlockFSClientEx(FSGetClientBody(client)->clientHandle);
+}
+
+FSError IOSUHAX_UnlockFSClientEx(int clientHandle) {
     ALIGN(0x40)
     int dummy[0x40 >> 2];
 
-    return IOS_Ioctl(FSGetClientBody(client)->clientHandle, 0x28, dummy, sizeof(dummy), dummy, sizeof(dummy));
-}
-
-#define __FSAShimSetupRequestMount   ((int (*)(FSAShimBuffer *, uint32_t, const char *, const char *, uint32_t, uint32_t, uint32_t))(0x101C400 + 0x042f88))
-#define __FSAShimSetupRequestUnmount ((int (*)(FSAShimBuffer *, uint32_t, const char *, uint32_t))(0x101C400 + 0x43130))
-#define __FSAShimSend                ((int (*)(FSAShimBuffer *, uint32_t))(0x101C400 + 0x042d90))
-
-int IOSUHAX_FSAMount(FSClient *client, const char *source, const char *target) {
-    if (!client) {
-        return -1;
+    if (IOS_Ioctl(clientHandle, 0x28, dummy, sizeof(dummy), dummy, sizeof(dummy)) == 0) {
+        return static_cast<FSError>(0);
     }
-    return IOSUHAX_FSAMountEx(FSGetClientBody(client)->clientHandle, source, target);
+    return FS_ERROR_PERMISSION_ERROR;
 }
 
-int IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target) {
+#define __FSAShimSetupRequestMount   ((FSError(*)(FSAShimBuffer *, uint32_t, const char *, const char *, uint32_t, void *, uint32_t))(0x101C400 + 0x042f88))
+#define __FSAShimSetupRequestUnmount ((FSError(*)(FSAShimBuffer *, uint32_t, const char *, uint32_t))(0x101C400 + 0x43130))
+#define __FSAShimSend                ((FSError(*)(FSAShimBuffer *, uint32_t))(0x101C400 + 0x042d90))
+#define __FSAStatusToFSStatus        ((FSStatus(*)(FSError))(0x101C400 + 0x58ad4))
+
+
+FSError IOSUHAX_FSAMount(FSClient *client, const char *source, const char *target, uint32_t flags, void *arg_buf, uint32_t arg_len) {
+    if (!client) {
+        return FS_ERROR_INVALID_CLIENTHANDLE;
+    }
+    return IOSUHAX_FSAMountEx(FSGetClientBody(client)->clientHandle, source, target, flags, arg_buf, arg_len);
+}
+
+FSError IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target, uint32_t flags, void *arg_buf, uint32_t arg_len) {
     auto *buffer = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!buffer) {
-        return -1;
+        return FS_ERROR_INVALID_BUFFER;
     }
-
-    int res = __FSAShimSetupRequestMount(buffer, clientHandle, source, target, 0, 0, 0);
+    auto res = __FSAShimSetupRequestMount(buffer, clientHandle, source, target, 2, arg_buf, arg_len);
     if (res != 0) {
         free(buffer);
         return res;
@@ -85,20 +94,20 @@ int IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target)
     return res;
 }
 
-int IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget) {
+FSError IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget) {
     if (!client) {
-        return -1;
+        return FS_ERROR_INVALID_CLIENTHANDLE;
     }
     return IOSUHAX_FSAUnmountEx(FSGetClientBody(client)->clientHandle, mountedTarget);
 }
 
-int IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget) {
+FSError IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget) {
     auto *buffer = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!buffer) {
-        return -1;
+        return FS_ERROR_INVALID_BUFFER;
     }
 
-    int res = __FSAShimSetupRequestUnmount(buffer, clientHandle, mountedTarget, 0 /*0x80000000 for FSBindUnmount*/);
+    auto res = __FSAShimSetupRequestUnmount(buffer, clientHandle, mountedTarget, 0 /*0x80000000 for FSBindUnmount*/);
     if (res != 0) {
         free(buffer);
         return res;
@@ -108,17 +117,23 @@ int IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget) {
     return res;
 }
 
-int IOSUHAX_FSARawOpen(FSClient *client, char *device_path, int32_t *outHandle) {
+FSError IOSUHAX_FSARawOpen(FSClient *client, char *device_path, int32_t *outHandle) {
     if (!client) {
-        return -1;
+        return FS_ERROR_INVALID_CLIENTHANDLE;
     }
     return IOSUHAX_FSARawOpenEx(FSGetClientBody(client)->clientHandle, device_path, outHandle);
 }
 
-int IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle) {
+FSError IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle) {
+    if (!outHandle) {
+        return FS_ERROR_INVALID_BUFFER;
+    }
+    if (!device_path) {
+        return FS_ERROR_INVALID_PATH;
+    }
     auto *shim = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!shim) {
-        return -1;
+        return FS_ERROR_INVALID_BUFFER;
     }
 
     shim->clientHandle   = clientHandle;
@@ -130,7 +145,7 @@ int IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle
 
     strncpy(requestBuffer->path, device_path, 0x27F);
 
-    int res = __FSAShimSend(shim, 0);
+    auto res = __FSAShimSend(shim, 0);
     if (res >= 0) {
         *outHandle = shim->response.rawOpen.handle;
     }
@@ -138,14 +153,17 @@ int IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle
     return res;
 }
 
-int IOSUHAX_FSARawClose(FSClient *client, int32_t device_handle) {
+FSError IOSUHAX_FSARawClose(FSClient *client, int32_t device_handle) {
+    if (!client) {
+        return FS_ERROR_INVALID_CLIENTHANDLE;
+    }
     return IOSUHAX_FSARawCloseEx(FSGetClientBody(client)->clientHandle, device_handle);
 }
 
-int IOSUHAX_FSARawCloseEx(int clientHandle, int32_t device_handle) {
+FSError IOSUHAX_FSARawCloseEx(int clientHandle, int32_t device_handle) {
     auto *buffer = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!buffer) {
-        return -1;
+        return FS_ERROR_INVALID_BUFFER;
     }
 
     buffer->clientHandle   = clientHandle;
@@ -160,19 +178,25 @@ int IOSUHAX_FSARawCloseEx(int clientHandle, int32_t device_handle) {
 
     requestBuffer->handle = device_handle;
 
-    int res = __FSAShimSend(buffer, 0);
+    auto res = __FSAShimSend(buffer, 0);
     free(buffer);
     return res;
 }
 
-int IOSUHAX_FSARawRead(FSClient *client, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
+FSError IOSUHAX_FSARawRead(FSClient *client, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
+    if (!client) {
+        return FS_ERROR_INVALID_CLIENTHANDLE;
+    }
     return IOSUHAX_FSARawReadEx(FSGetClientBody(client)->clientHandle, data, size_bytes, cnt, blocks_offset, device_handle);
 }
 
-int IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
+FSError IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
+    if (data == nullptr) {
+        return FS_ERROR_INVALID_BUFFER;
+    }
     auto *shim = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!shim) {
-        return -1;
+        return FS_ERROR_INVALID_BUFFER;
     }
 
     shim->clientHandle = clientHandle;
@@ -188,11 +212,12 @@ int IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint
     auto *tmp = data;
 
     if ((uint32_t) data & 0x3F) {
-        OSReport("## WARNING: IOSUHAX_FSARawReadEx buffer not aligned (%08X). Align to 0x40 for best performance\n", data);
         auto *alignedBuffer = memalign(0x40, ROUNDUP(size_bytes * cnt, 0x40));
         if (!alignedBuffer) {
-            return -2;
+            OSReport("## ERROR: IOSUHAX_FSARawReadEx buffer not aligned (%08X).\n", data);
+            return FS_ERROR_INVALID_ALIGNMENT;
         }
+        OSReport("## WARNING: IOSUHAX_FSARawReadEx buffer not aligned (%08X). Align to 0x40 for best performance\n", data);
         tmp = alignedBuffer;
     }
 
@@ -208,7 +233,7 @@ int IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint
     request.size          = size_bytes;
     request.device_handle = device_handle;
 
-    int res = __FSAShimSend(shim, 0);
+    auto res = __FSAShimSend(shim, 0);
     if (res >= 0 && tmp != data) {
         memcpy(data, tmp, size_bytes * cnt);
     }
@@ -220,17 +245,17 @@ int IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint
     return res;
 }
 
-int IOSUHAX_FSARawWrite(FSClient *client, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
+FSError IOSUHAX_FSARawWrite(FSClient *client, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
     if (!client) {
-        return -1;
+        return FS_ERROR_INVALID_CLIENTHANDLE;
     }
     return IOSUHAX_FSARawWriteEx(FSGetClientBody(client)->clientHandle, data, size_bytes, cnt, blocks_offset, device_handle);
 }
 
-int IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
+FSError IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle) {
     auto *shim = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!shim) {
-        return -1;
+        return FS_ERROR_INVALID_BUFFER;
     }
 
     shim->clientHandle = clientHandle;
@@ -245,11 +270,12 @@ int IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_byte
 
     void *tmp = (void *) data;
     if ((uint32_t) data & 0x3F) {
-        OSReport("## WARNING: IOSUHAX_FSARawWriteEx buffer not aligned (%08X). Align to 0x40 for best performance\n", data);
         auto *alignedBuffer = memalign(0x40, ROUNDUP(size_bytes * cnt, 0x40));
         if (!alignedBuffer) {
-            return -2;
+            OSReport("## ERROR: IOSUHAX_FSARawWriteEx buffer not aligned (%08X).\n", data);
+            return FS_ERROR_INVALID_ALIGNMENT;
         }
+        OSReport("## WARNING: IOSUHAX_FSARawWriteEx buffer not aligned (%08X). Align to 0x40 for best performance\n", data);
         tmp = alignedBuffer;
         memcpy(tmp, data, size_bytes * cnt);
     }
@@ -266,7 +292,7 @@ int IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_byte
     request.size          = size_bytes;
     request.device_handle = device_handle;
 
-    int res = __FSAShimSend(shim, 0);
+    auto res = __FSAShimSend(shim, 0);
 
     if (tmp != data) {
         free(tmp);

@@ -38,25 +38,26 @@ extern "C" {
 #define FSA_MOUNTFLAGS_BINDMOUNT (1 << 0)
 #define FSA_MOUNTFLAGS_GLOBAL    (1 << 1)
 
-int IOSUHAX_UnlockFSClient(FSClient *client);
+FSError IOSUHAX_UnlockFSClient(FSClient *client);
+FSError IOSUHAX_UnlockFSClientEx(int clientHandle);
 
-int IOSUHAX_FSAMount(FSClient *client, const char *source, const char *target);
-int IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target);
+FSError IOSUHAX_FSAMount(FSClient *client, const char *source, const char *target, uint32_t flags, void *arg_buf, uint32_t arg_len);
+FSError IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target, uint32_t flags, void *arg_buf, uint32_t arg_len);
 
-int IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget);
-int IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget);
+FSError IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget);
+FSError IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget);
 
-int IOSUHAX_FSARawOpen(FSClient *client, char *device_path, int32_t *outHandle);
-int IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle);
+FSError IOSUHAX_FSARawOpen(FSClient *client, char *device_path, int32_t *outHandle);
+FSError IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle);
 
-int IOSUHAX_FSARawRead(FSClient *client, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
-int IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+FSError IOSUHAX_FSARawRead(FSClient *client, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+FSError IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
 
-int IOSUHAX_FSARawWrite(FSClient *client, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
-int IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+FSError IOSUHAX_FSARawWrite(FSClient *client, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+FSError IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
 
-int IOSUHAX_FSARawClose(FSClient *client, int32_t device_handle);
-int IOSUHAX_FSARawCloseEx(int clientHandle, int32_t device_handle);
+FSError IOSUHAX_FSARawClose(FSClient *client, int32_t device_handle);
+FSError IOSUHAX_FSARawCloseEx(int clientHandle, int32_t device_handle);
 
 int IOSUHAX_Open(const char *dev); // if dev == NULL the default path /dev/iosuhax will be used
 int IOSUHAX_Close(void);
