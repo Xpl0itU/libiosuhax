@@ -131,10 +131,8 @@ int IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle
     strncpy(requestBuffer->path, device_path, 0x27F);
 
     int res = __FSAShimSend(shim, 0);
-    OSReport("open res %08X\n", res);
     if (res >= 0) {
         *outHandle = shim->response.rawOpen.handle;
-        OSReport("set outHandle to %08X\n", *outHandle);
     }
     free(shim);
     return res;
