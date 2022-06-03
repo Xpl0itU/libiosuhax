@@ -23,6 +23,8 @@
  ***************************************************************************/
 #include "iosuhax_disc_interface.h"
 #include "iosuhax.h"
+#include <coreinit/debug.h>
+#include <coreinit/ios.h>
 #include <malloc.h>
 #include <string.h>
 
@@ -49,19 +51,16 @@ static void IOSUHAX_disc_io_initialize(void) {
 static bool IOSUHAX_disc_io_fsa_open(int fsaFd) {
     IOSUHAX_disc_io_initialize();
 
-    if (IOSUHAX_Open(NULL) < 0)
-        return false;
-
     if (fsaFd == FSA_REF_SD) {
         if (fsaFdSd < 0) {
-            fsaFdSd = IOSUHAX_FSA_Open();
+            fsaFdSd = IOS_Open("/dev/fsa", IOS_OPEN_READWRITE);
         }
 
         if (fsaFdSd >= 0)
             return true;
     } else if (fsaFd == FSA_REF_USB) {
         if (fsaFdUsb < 0) {
-            fsaFdUsb = IOSUHAX_FSA_Open();
+            fsaFdUsb = IOS_Open("/dev/fsa", IOS_OPEN_READWRITE);
         }
 
         if (fsaFdUsb >= 0)
@@ -74,12 +73,12 @@ static bool IOSUHAX_disc_io_fsa_open(int fsaFd) {
 static void IOSUHAX_disc_io_fsa_close(int fsaFd) {
     if (fsaFd == FSA_REF_SD) {
         if (fsaFdSd >= 0) {
-            IOSUHAX_FSA_Close(fsaFdSd);
+            IOS_Close(fsaFdSd);
             fsaFdSd = -1;
         }
     } else if (fsaFd == FSA_REF_USB) {
         if (fsaFdUsb >= 0) {
-            IOSUHAX_FSA_Close(fsaFdUsb);
+            IOS_Close(fsaFdUsb);
             fsaFdUsb = -1;
         }
     }
@@ -90,7 +89,7 @@ static bool IOSUHAX_sdio_startup(void) {
         return false;
 
     if (sdioFd < 0) {
-        int res = IOSUHAX_FSA_RawOpen(fsaFdSd, "/dev/sdcard01", &sdioFd);
+        int res = IOSUHAX_FSARawOpenEx(fsaFdSd, "/dev/sdcard01", &sdioFd);
         if (res < 0) {
             IOSUHAX_disc_io_fsa_close(FSA_REF_SD);
             sdioFd = -1;
@@ -113,7 +112,7 @@ static bool IOSUHAX_sdio_shutdown(void) {
     if (!IOSUHAX_sdio_isInserted())
         return false;
 
-    IOSUHAX_FSA_RawClose(fsaFdSd, sdioFd);
+    IOSUHAX_FSARawCloseEx(fsaFdSd, sdioFd);
     IOSUHAX_disc_io_fsa_close(FSA_REF_SD);
     sdioFd = -1;
     return true;
@@ -123,7 +122,7 @@ static bool IOSUHAX_sdio_readSectors(uint32_t sector, uint32_t numSectors, void 
     if (!IOSUHAX_sdio_isInserted())
         return false;
 
-    int res = IOSUHAX_FSA_RawRead(fsaFdSd, buffer, 512, numSectors, sector, sdioFd);
+    int res = IOSUHAX_FSARawReadEx(fsaFdSd, buffer, 512, numSectors, sector, sdioFd);
     if (res < 0) {
         return false;
     }
@@ -135,7 +134,7 @@ static bool IOSUHAX_sdio_writeSectors(uint32_t sector, uint32_t numSectors, cons
     if (!IOSUHAX_sdio_isInserted())
         return false;
 
-    int res = IOSUHAX_FSA_RawWrite(fsaFdSd, buffer, 512, numSectors, sector, sdioFd);
+    int res = IOSUHAX_FSARawWriteEx(fsaFdSd, buffer, 512, numSectors, sector, sdioFd);
     if (res < 0) {
         return false;
     }
@@ -158,9 +157,9 @@ static bool IOSUHAX_usb_startup(void) {
         return false;
 
     if (usbFd < 0) {
-        int res = IOSUHAX_FSA_RawOpen(fsaFdUsb, "/dev/usb01", &usbFd);
+        int res = IOSUHAX_FSARawOpenEx(fsaFdUsb, "/dev/usb01", &usbFd);
         if (res < 0) {
-            res = IOSUHAX_FSA_RawOpen(fsaFdUsb, "/dev/usb02", &usbFd);
+            res = IOSUHAX_FSARawOpenEx(fsaFdUsb, "/dev/usb02", &usbFd);
             if (res < 0) {
                 IOSUHAX_disc_io_fsa_close(FSA_REF_USB);
                 usbFd = -1;
@@ -182,7 +181,7 @@ static bool IOSUHAX_usb_shutdown(void) {
     if (!IOSUHAX_usb_isInserted())
         return false;
 
-    IOSUHAX_FSA_RawClose(fsaFdUsb, usbFd);
+    IOSUHAX_FSARawCloseEx(fsaFdUsb, usbFd);
     IOSUHAX_disc_io_fsa_close(FSA_REF_USB);
     usbFd = -1;
     return true;
@@ -192,7 +191,7 @@ static bool IOSUHAX_usb_readSectors(uint32_t sector, uint32_t numSectors, void *
     if (!IOSUHAX_usb_isInserted())
         return false;
 
-    int res = IOSUHAX_FSA_RawRead(fsaFdUsb, buffer, 512, numSectors, sector, usbFd);
+    int res = IOSUHAX_FSARawReadEx(fsaFdUsb, buffer, 512, numSectors, sector, usbFd);
     if (res < 0) {
         return false;
     }
@@ -204,7 +203,7 @@ static bool IOSUHAX_usb_writeSectors(uint32_t sector, uint32_t numSectors, const
     if (!IOSUHAX_usb_isInserted())
         return false;
 
-    int res = IOSUHAX_FSA_RawWrite(fsaFdUsb, buffer, 512, numSectors, sector, usbFd);
+    int res = IOSUHAX_FSARawWriteEx(fsaFdUsb, buffer, 512, numSectors, sector, usbFd);
     if (res < 0) {
         return false;
     }

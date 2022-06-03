@@ -38,10 +38,25 @@ extern "C" {
 #define FSA_MOUNTFLAGS_BINDMOUNT (1 << 0)
 #define FSA_MOUNTFLAGS_GLOBAL    (1 << 1)
 
-
 int IOSUHAX_UnlockFSClient(FSClient *client);
 
-int IOSUHAX_FSMount(FSClient *client, const char *source, const char *target);
+int IOSUHAX_FSAMount(FSClient *client, const char *source, const char *target);
+int IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target);
+
+int IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget);
+int IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget);
+
+int IOSUHAX_FSARawOpen(FSClient *client, char *device_path, int32_t *outHandle);
+int IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle);
+
+int IOSUHAX_FSARawRead(FSClient *client, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+int IOSUHAX_FSARawReadEx(int clientHandle, void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+
+int IOSUHAX_FSARawWrite(FSClient *client, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+int IOSUHAX_FSARawWriteEx(int clientHandle, const void *data, uint32_t size_bytes, uint32_t cnt, uint64_t blocks_offset, int device_handle);
+
+int IOSUHAX_FSARawClose(FSClient *client, int32_t device_handle);
+int IOSUHAX_FSARawCloseEx(int clientHandle, int32_t device_handle);
 
 int IOSUHAX_Open(const char *dev); // if dev == NULL the default path /dev/iosuhax will be used
 int IOSUHAX_Close(void);
@@ -61,56 +76,6 @@ int IOSUHAX_read_seeprom(uint8_t *out_buffer, uint32_t offset, uint32_t size);
 int IOSUHAX_ODM_GetDiscKey(uint8_t *discKey);
 
 int IOSUHAX_SVC(uint32_t svc_id, uint32_t *args, uint32_t arg_cnt);
-
-int IOSUHAX_FSA_Open();
-
-int IOSUHAX_FSA_Close(int fsaFd);
-
-int IOSUHAX_FSA_Mount(int fsaFd, const char *device_path, const char *volume_path, uint32_t flags, const char *arg_string, int arg_string_len);
-
-int IOSUHAX_FSA_Unmount(int fsaFd, const char *path, uint32_t flags);
-
-int IOSUHAX_FSA_FlushVolume(int fsaFd, const char *volume_path);
-
-int IOSUHAX_FSA_GetDeviceInfo(int fsaFd, const char *device_path, int type, uint32_t *out_data);
-
-int IOSUHAX_FSA_MakeDir(int fsaFd, const char *path, uint32_t flags);
-
-int IOSUHAX_FSA_OpenDir(int fsaFd, const char *path, int *outHandle);
-
-int IOSUHAX_FSA_ReadDir(int fsaFd, int handle, FSDirectoryEntry *out_data);
-
-int IOSUHAX_FSA_RewindDir(int fsaFd, int dirHandle);
-
-int IOSUHAX_FSA_CloseDir(int fsaFd, int handle);
-
-int IOSUHAX_FSA_ChangeDir(int fsaFd, const char *path);
-
-int IOSUHAX_FSA_OpenFile(int fsaFd, const char *path, const char *mode, int *outHandle);
-
-int IOSUHAX_FSA_ReadFile(int fsaFd, void *data, uint32_t size, uint32_t cnt, int fileHandle, uint32_t flags);
-
-int IOSUHAX_FSA_WriteFile(int fsaFd, const void *data, uint32_t size, uint32_t cnt, int fileHandle, uint32_t flags);
-
-int IOSUHAX_FSA_StatFile(int fsaFd, int fileHandle, FSStat *out_data);
-
-int IOSUHAX_FSA_CloseFile(int fsaFd, int fileHandle);
-
-int IOSUHAX_FSA_SetFilePos(int fsaFd, int fileHandle, uint32_t position);
-
-int IOSUHAX_FSA_GetStat(int fsaFd, const char *path, FSStat *out_data);
-
-int IOSUHAX_FSA_Remove(int fsaFd, const char *path);
-
-int IOSUHAX_FSA_ChangeMode(int fsaFd, const char *path, int mode);
-
-int IOSUHAX_FSA_RawOpen(int fsaFd, const char *device_path, int *outHandle);
-
-int IOSUHAX_FSA_RawRead(int fsaFd, void *data, uint32_t block_size, uint32_t block_cnt, uint64_t sector_offset, int device_handle);
-
-int IOSUHAX_FSA_RawWrite(int fsaFd, const void *data, uint32_t block_size, uint32_t block_cnt, uint64_t sector_offset, int device_handle);
-
-int IOSUHAX_FSA_RawClose(int fsaFd, int device_handle);
 
 #ifdef __cplusplus
 }
