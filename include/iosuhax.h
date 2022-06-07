@@ -44,8 +44,8 @@ FSError IOSUHAX_UnlockFSClientEx(int clientHandle);
 FSError IOSUHAX_FSAMount(FSClient *client, const char *source, const char *target, uint32_t flags, void *arg_buf, uint32_t arg_len);
 FSError IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *target, uint32_t flags, void *arg_buf, uint32_t arg_len);
 
-FSError IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget);
-FSError IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget);
+FSError IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget, uint32_t flags);
+FSError IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget, uint32_t flags);
 
 FSError IOSUHAX_FSARawOpen(FSClient *client, char *device_path, int32_t *outHandle);
 FSError IOSUHAX_FSARawOpenEx(int clientHandle, char *device_path, int32_t *outHandle);

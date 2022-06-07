@@ -84,7 +84,7 @@ FSError IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *tar
     if (!buffer) {
         return FS_ERROR_INVALID_BUFFER;
     }
-    auto res = __FSAShimSetupRequestMount(buffer, clientHandle, source, target, 2, arg_buf, arg_len);
+    auto res = __FSAShimSetupRequestMount(buffer, clientHandle, source, target, flags, arg_buf, arg_len);
     if (res != 0) {
         free(buffer);
         return res;
@@ -94,20 +94,20 @@ FSError IOSUHAX_FSAMountEx(int clientHandle, const char *source, const char *tar
     return res;
 }
 
-FSError IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget) {
+FSError IOSUHAX_FSAUnmount(FSClient *client, const char *mountedTarget, uint32_t flags) {
     if (!client) {
         return FS_ERROR_INVALID_CLIENTHANDLE;
     }
     return IOSUHAX_FSAUnmountEx(FSGetClientBody(client)->clientHandle, mountedTarget);
 }
 
-FSError IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget) {
+FSError IOSUHAX_FSAUnmountEx(int clientHandle, const char *mountedTarget, uint32_t flags) {
     auto *buffer = (FSAShimBuffer *) memalign(0x40, sizeof(FSAShimBuffer));
     if (!buffer) {
         return FS_ERROR_INVALID_BUFFER;
     }
 
-    auto res = __FSAShimSetupRequestUnmount(buffer, clientHandle, mountedTarget, 0 /*0x80000000 for FSBindUnmount*/);
+    auto res = __FSAShimSetupRequestUnmount(buffer, clientHandle, mountedTarget, flags);
     if (res != 0) {
         free(buffer);
         return res;
